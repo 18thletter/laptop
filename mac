@@ -1,13 +1,8 @@
 #!/bin/sh
 
-# Welcome to the thoughtbot laptop script!
-# Be prepared to turn your laptop (or desktop, no haters here)
-# into an awesome development machine.
-
 fancy_echo() {
   local fmt="$1"; shift
 
-  # shellcheck disable=SC2059
   printf "\n$fmt\n" "$@"
 }
 
@@ -30,6 +25,20 @@ append_to_zshrc() {
   fi
 }
 
+append_to_fishconfig() {
+  local text="$1"
+  local skip_new_line="$2"
+  local fishconfig="$HOME/.config/fish/config.fish"
+
+  if ! grep -Fqs "$text" "$fishconfig"; then
+    if [ "$skip_new_line" -eq 1 ]; then
+      printf "%s\n" "$text" >> "$fishconfig"
+    else
+      printf "\n%s\n" "$text" >> "$fishconfig"
+    fi
+  fi
+}
+
 trap 'ret=$?; test $ret -ne 0 && printf "failed\n\n" >&2; exit $ret' EXIT
 
 set -e
@@ -42,16 +51,13 @@ if [ ! -f "$HOME/.zshrc" ]; then
   touch "$HOME/.zshrc"
 fi
 
+if [ ! -f "$HOME/.config/fish/config.fish" ]
+then
+
+
 # shellcheck disable=SC2016
 append_to_zshrc 'export PATH="$HOME/.bin:$PATH"'
 
-case "$SHELL" in
-  */zsh) : ;;
-  *)
-    fancy_echo "Changing your shell to zsh ..."
-      chsh -s "$(which zsh)"
-    ;;
-esac
 
 brew_install_or_upgrade() {
   if brew_is_installed "$1"; then
@@ -113,15 +119,28 @@ if ! command -v brew >/dev/null; then
     curl -fsS \
       'https://raw.githubusercontent.com/Homebrew/install/master/install' | ruby
 
+    brew_install_or_upgrade fish
+
     append_to_zshrc '# recommended by brew doctor'
+    append_to_fishconfig '# recommended by brew doctor'
 
     # shellcheck disable=SC2016
     append_to_zshrc 'export PATH="/usr/local/bin:$PATH"' 1
+    append_to_fishconfig 'export PATH="/usr/local/bin:$PATH"' 1
 
     export PATH="/usr/local/bin:$PATH"
 else
   fancy_echo "Homebrew already installed. Skipping ..."
 fi
+
+case "$SHELL" in
+  */zsh) : ;;
+  */fish) : ;;
+  *)
+    fancy_echo "Changing your shell to fish ..."
+      chsh -s "$(which fish)"
+    ;;
+esac
 
 fancy_echo "Updating Homebrew formulas ..."
 brew update
